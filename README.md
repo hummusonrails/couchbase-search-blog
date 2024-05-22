@@ -1,6 +1,6 @@
 # Couchbase Search Blog API
 
-This Express server provides an API that exposes a Couchbase search of a database bucket. It can be used in conjunction with a static blog site to give it an endpoint to fetch search data.
+This Express server provides an API that exposes a Couchbase vector search of a database bucket. It can be used in conjunction with a static blog site to give it an endpoint to fetch search data.
 
 ## Prerequisites
 
@@ -26,7 +26,7 @@ Before running the server, make sure you have the following installed:
 
 3. Configure the Couchbase connection:
 
-    Open the `.env.example` file and update the environment variables with your Couchbase Server credentials.
+    Open the `.env.example` file and update the environment variables with your Couchbase and OpenAI credentials.
 
 ## Usage
 

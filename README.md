@@ -57,9 +57,9 @@ Searches the blog database for posts that match the query.
     {
       "id": "post-id",
       "title": "Post Title",
-      "content": "Post Content",
+      "summary": "Post Summary",
       "tags": ["tag1", "tag2"],
-      "created_at": "2021-01-01T00:00:00.000Z"
+      "date": "2021-01-01T00:00:00.000Z"
     }
   ]
 }

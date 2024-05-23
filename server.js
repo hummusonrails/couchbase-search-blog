@@ -29,7 +29,7 @@ async function init() {
  */
 async function generateQueryEmbedding(query) {
   const response = await openaiclient.embeddings.create({
-    model: 'text-embedding-3-large',
+    model: 'text-embedding-ada-002',
     input: query,
   });
   return response.data[0].embedding;
@@ -41,25 +41,28 @@ async function generateQueryEmbedding(query) {
  * @returns {Array} An array of objects containing the id and embeddings of stored data.
  * @throws {Error} If there is an error querying the database.
  */
-async function getStoredEmbeddings() {
+async function getStoredEmbeddings(queryEmbedding) {
   const cluster = await init();
-  const query = 'SELECT META().id, embeddings FROM `blogBucket` WHERE type = "embedding"';
-  const result = await cluster.query(query);
+  const scope = cluster.bucket('blogBucket').scope('_default');
+  const search_index = process.env.COUCHBASE_VECTOR_SEARCH_INDEX;
+
+  const search_req = couchbase.SearchRequest.create(
+    couchbase.VectorSearch.fromVectorQuery(
+      couchbase.VectorQuery.create(
+        "embeddings",
+        queryEmbedding
+      ).numCandidates(5)
+    )
+  )
+
+  const result = await scope.search(
+    search_index,
+    search_req
+  )
+  
   return result.rows;
 }
-/**
- * Calculate the cosine similarity between two vectors.
- *
- * @param {number[]} vectorA - The first vector.
- * @param {number[]} vectorB - The second vector.
- * @returns {number} The cosine similarity between the two vectors.
- */
-function cosineSimilarity(vectorA, vectorB) {
-  const dotProduct = vectorA.reduce((sum, a, i) => sum + a * vectorB[i], 0);
-  const normA = Math.sqrt(vectorA.reduce((sum, a) => sum + a * a, 0));
-  const normB = Math.sqrt(vectorB.reduce((sum, b) => sum + b * b, 0));
-  return dotProduct / (normA * normB);
-}
+
 /**
  * Asynchronously searches for relevant blog posts based on the provided query.
  *
@@ -68,21 +71,14 @@ function cosineSimilarity(vectorA, vectorB) {
  */
 async function searchBlogPosts(query) {
   const queryEmbedding = await generateQueryEmbedding(query);
-  const storedEmbeddings = await getStoredEmbeddings();
-  const similarities = storedEmbeddings.map(({ id, embeddings }) => ({
-    id,
-    similarity: cosineSimilarity(queryEmbedding, embeddings),
-  }));
+  const storedEmbeddings = await getStoredEmbeddings(queryEmbedding);
 
-  similarities.sort((a, b) => b.similarity - a.similarity);
-
-  const topResults = similarities.slice(0, 10); // Return top 10 results
 
   const cluster = await init();
   const bucket = cluster.bucket('blogBucket');
   const collection = bucket.defaultCollection();
   const results = await Promise.all(
-    topResults.map(async ({ id }) => {
+    storedEmbeddings.map(async ({ id }) => {
       const docId = id.replace('embedding::', '');
       const result = await collection.get(docId);
       return result.content;

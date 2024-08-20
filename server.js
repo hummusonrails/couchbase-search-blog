@@ -49,18 +49,23 @@ async function getStoredEmbeddings(queryEmbedding) {
   const search_req = couchbase.SearchRequest.create(
     couchbase.VectorSearch.fromVectorQuery(
       couchbase.VectorQuery.create(
-        "embeddings",
+        "blogBucket.embeddings",
         queryEmbedding
       ).numCandidates(5)
     )
-  )
+  );
 
   const result = await scope.search(
     search_index,
     search_req
-  )
-  
-  return result.rows;
+  );
+
+  return result.rows.map(row => {
+    return {
+      id: row.id,
+      embeddings: row.content.blogBucket.embeddings 
+    };
+  });
 }
 
 /**
@@ -73,7 +78,6 @@ async function searchBlogPosts(query) {
   const queryEmbedding = await generateQueryEmbedding(query);
   const storedEmbeddings = await getStoredEmbeddings(queryEmbedding);
 
-
   const cluster = await init();
   const bucket = cluster.bucket('blogBucket');
   const collection = bucket.defaultCollection();
@@ -81,12 +85,13 @@ async function searchBlogPosts(query) {
     storedEmbeddings.map(async ({ id }) => {
       const docId = id.replace('embedding::', '');
       const result = await collection.get(docId);
-      return result.content;
+      return result.content.blogBucket;
     })
   );
 
   return results;
 }
+
 
 app.get('/search', async (req, res) => {
   const searchTerm = req.query.q || '';

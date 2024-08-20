@@ -85,7 +85,7 @@ async function searchBlogPosts(query) {
     storedEmbeddings.map(async ({ id }) => {
       const docId = id.replace('embedding::', '');
       const result = await collection.get(docId);
-      return result.content.blogBucket;
+      return result.content;
     })
   );
 
